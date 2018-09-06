@@ -57,7 +57,8 @@
         public string Description { get; set; }
         public string TagedTime { get; set; }
 
-        //节点会签方式，默认为全部通过
+        //节点会签方式，
+        //all/空：默认为全部通过
         //one ：至少有一个通过
         public string NodeConfluenceType { get; set; }
 
@@ -97,5 +98,17 @@
         public string UserName { get; set; }
         public string Description { get; set; }
         public string TagedTime { get; set; }
+    }
+
+    /// <summary>
+    ///  1: 通过
+    ///  2：不通过
+    ///  3：驳回
+    /// </summary>
+    public enum TagState
+    {
+        Ok = 1,
+        No ,
+        Reject
     }
 }

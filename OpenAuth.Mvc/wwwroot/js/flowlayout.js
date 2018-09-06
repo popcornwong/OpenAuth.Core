@@ -180,7 +180,7 @@
                                 $("#" + item.id).css("background", "#5bc0de"); //正在处理
                             }
                             if (item.setInfo != undefined && item.setInfo.Taged != undefined) {
-                                if (item.setInfo.Taged == -1) {
+                                if (item.setInfo.Taged == 2) {
                                     $("#" + item.id).css("background", "#d9534f"); //不通过
                                 } else if (item.setInfo.Taged == 1) {
                                     $("#" + item.id).css("background", "#5cb85c"); //通过
@@ -231,7 +231,7 @@
                     "NodeDesignateType5": "发起者部门领导",
                     "NodeDesignateType6": "发起者公司领导"
                 };
-                var _NodeConfluenceType = { "0": "所有步骤通过", "1": "一个步骤通过即可", "2": "按百分比计算" };
+                var _NodeConfluenceType = { "all": "所有步骤通过", "one": "一个步骤通过即可", "2": "按百分比计算" };
                 if (options.flowcontent == undefined) return;
                 $.each(options.flowcontent.nodes,
                     function (i, item) {

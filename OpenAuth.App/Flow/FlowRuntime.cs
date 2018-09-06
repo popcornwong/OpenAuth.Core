@@ -118,7 +118,10 @@ namespace OpenAuth.App.Flow
         private string GetNextNodeId(string nodeId = null)
         {
             List<FlowLine> LineList = nodeId == null ? FromNodeLines[currentNodeId] : FromNodeLines[nodeId];
-            if (LineList.Count == 0) return "-1";
+            if (LineList.Count == 0)
+            {
+                throw (new Exception("无法寻找到下一个节点"));
+            }
             return LineList[0].to;
 
             //if (FrmData != "")  //表单数据不为空，可以处理分支
@@ -131,6 +134,7 @@ namespace OpenAuth.App.Flow
         #endregion 私有方法
 
         #region 共有方法
+
         /// <summary>
         /// 获取实例接下来运行的状态
         /// </summary>
@@ -179,89 +183,71 @@ namespace OpenAuth.App.Flow
         /// <returns>-1不通过,1等待,其它通过</returns>
         public string NodeConfluence(string nodeId, Tag tag)
         {
-            string res = "-1";
-            string joinNodeId = GetNextNodeId(nodeId); //获取回签的合流节点
 
-            if (joinNodeId == "-1")
+            var forkToThisLine = ToNodeLines[nodeId].FirstOrDefault();
+            if (forkToThisLine == null)
             {
-                throw (new Exception("寻找不到会签下合流节点"));
+                throw (new Exception("该会签节点没有来源，请检查流程结构"));
             }
 
-            int allnum = ToNodeLines[joinNodeId].Count;   //总会签数量
+            var forkNode = Nodes[forkToThisLine.from];  //会签开始节点
+            string joinNodeId = GetNextNodeId(nodeId); //获取回签的合流节点
 
-            int i = 0;
-            foreach (var item in Nodes)
+            int allnum = FromNodeLines[forkToThisLine.from].Count;   //总会签数量
+            string res =string.Empty;  //记录会签的结果,默认正在会签
+            if (forkNode.setInfo.NodeConfluenceType == "one") //有一个步骤通过即可
             {
-                if (item.Key != joinNodeId)
+                if (tag.Taged == (int) TagState.Ok)
                 {
-                    i++;
-                    continue;
+                    res = GetNextNodeId(joinNodeId);
                 }
-
-              
-                if (item.Value.setInfo.NodeConfluenceType == "one") //有一个步骤通过即可
+                else if(tag.Taged ==(int) TagState.No)
                 {
-                    if (tag.Taged == 1)
+                    if (forkNode.setInfo.ConfluenceNo == null)
                     {
-                        res = GetNextNodeId(nextNodeId);
-                        if (res == "-1")
-                        {
-                            throw (new Exception("会签成功寻找不到下一个节点"));
-                        }
+                        forkNode.setInfo.ConfluenceNo = 1;
+                    }
+                    else if (forkNode.setInfo.ConfluenceNo == (allnum - 1))
+                    {
+                        res = TagState.No.ToString("D");
                     }
                     else
                     {
-                        if (item.Value.setInfo.ConfluenceNo == null)
-                        {
-                            item.Value.setInfo.ConfluenceNo = 1;
-                            res = "1";
-                        }
-                        else if (item.Value.setInfo.ConfluenceNo == (allnum - 1))
-                        {
-                            //全部拒绝
-                            res = "-1";
-                        }
-                        else
-                        {
-                            item.Value.setInfo.ConfluenceNo++;
-                            res = "1";
-                        }
+                        forkNode.setInfo.ConfluenceNo++;
                     }
                 }
-                else //默认所有步骤通过
+            }
+            else //默认所有步骤通过
+            {
+                if (tag.Taged == (int) TagState.No)  //只要有一个不同意，那么流程就结束
                 {
-                    if (tag.Taged == 1)
+                    res = TagState.No.ToString("D");
+                }
+                else if(tag.Taged == (int)TagState.Ok)
+                {
+                    if (forkNode.setInfo.ConfluenceOk == null)
                     {
-                        if (item.Value.setInfo.ConfluenceOk == null)
-                        {
-                            item.Value.setInfo.ConfluenceOk = 1;
-                            res = "1";
-                        }
-                        else if (item.Value.setInfo.ConfluenceOk == (allnum - 1))  //会签成功
-                        {
-                            res = GetNextNodeId(joinNodeId);
-                            if (res == "-1")
-                            {
-                                throw (new Exception("会签成功寻找不到下一个节点"));
-                            }
-                        }
-                        else
-                        {
-                            item.Value.setInfo.ConfluenceOk++;
-                            res = "1";
-                        }
+                        forkNode.setInfo.ConfluenceOk = 1;
+                    }
+                    else if (forkNode.setInfo.ConfluenceOk == (allnum - 1))  //会签成功
+                    {
+                        res = GetNextNodeId(joinNodeId);
+                    }
+                    else
+                    {
+                        forkNode.setInfo.ConfluenceOk++;
                     }
                 }
             }
 
-            if (res == "-1")
+            if (res == TagState.No.ToString("D"))
             {
-                tag.Taged = -1;
+                tag.Taged = (int) TagState.No;
                 MakeTagNode(joinNodeId, tag);
             }
-            else if (res != "1") //这时res是会签结束节点后面的一个节点
+            else if (!string.IsNullOrEmpty(res)) //会签结束，标记合流节点
             {
-                tag.Taged = 1;
+                tag.Taged = (int) TagState.Ok;
                 MakeTagNode(joinNodeId, tag);
                 nextNodeId = res;
                 nextNodeType = GetNodeType(res);
@@ -315,6 +301,10 @@ namespace OpenAuth.App.Flow
             {
                 if (item.Key == nodeId)
                 {
+                    if (item.Value.setInfo == null)
+                    {
+                        item.Value.setInfo  = new Setinfo();
+                    }
                     item.Value.setInfo.Taged = tag.Taged;
                     item.Value.setInfo.UserId = tag.UserId;
                     item.Value.setInfo.UserName = tag.UserName;
@@ -336,7 +326,8 @@ namespace OpenAuth.App.Flow
                 areas = new string[0]
             };
         }
-        #endregion
+
+        #endregion 共有方法
 
         #region 属性
 
